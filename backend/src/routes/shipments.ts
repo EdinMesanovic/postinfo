@@ -4,6 +4,7 @@ import { Shipment, ShipmentStatus } from "../models/Shipment";
 import { customAlphabet } from "nanoid";
 
 // hexa 12 chars za QR payload (npr. a19c3f9b7d2e)
+//radi
 const nanoid = customAlphabet("0123456789abcdef", 12);
 
 const router = Router();
