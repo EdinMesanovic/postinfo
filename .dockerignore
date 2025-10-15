@@ -1,0 +1,15 @@
+# Izuzmi node_modules iz backend i frontend
+backend/node_modules
+frontend/node_modules
+
+# Izuzmi .env fajlove
+backend/.env
+frontend/.env
+frontend/.env.production
+
+# Izuzmi npm logove
+backend/npm-debug.log
+frontend/npm-debug.log
+
+# Izuzmi fajlove iz build-a (opciono)
+frontend/dist

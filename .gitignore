@@ -1,0 +1,29 @@
+# Ignorisi node_modules direktorij
+node_modules/
+package-lock.json
+
+# Ignoriraj .env fajlove samo u root direktoriju
+/.env
+
+# Ignoriraj .env fajlove specifično u backend direktoriju
+/backend/.env
+
+# Ignoriraj .env fajlove specifično u frontend direktoriju
+/frontend/.env
+
+/backend/createUser.js
+
+# Ignorisi privremene fajlove
+*.log
+*.tmp
+
+# Ignorisi direktorij za buildove
+/build
+/dist
+
+# Mac OS X specifični fajlovi
+.DS_Store
+
+# Ignorisi direktorij sa konfiguracijama IDE ili editora
+.vscode/
+.idea/
