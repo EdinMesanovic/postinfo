@@ -10,90 +10,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout
-      - name: Checkout code
-        uses: actions/checkout@v4
+    # Korak 1: Checkout koda iz GitHub repozitorija
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      # 2) Node
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: |
-            frontend/package-lock.json
-            backend/package-lock.json
+    # Korak 2: Setup Node.js
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20.19.0'   # ili '22.12.0'
+        check-latest: true
 
-      # 3) FRONTEND: install + build
-      - name: Install & build frontend
-        working-directory: ./frontend
-        run: |
-          npm ci
-          npm run build
+    # Korak 3: Install i build frontend
+    - name: Install and build frontend
+      working-directory: ./frontend
+      run: |
+        npm install
+        npm run build
 
-      # 4) FRONTEND: upload dist/
-      - name: Upload frontend via FTP
-        uses: SamKirkland/FTP-Deploy-Action@4.3.0
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./frontend/dist/
-          server-dir: /
-          # po želji:
-          # exclude: |
-          #   **/.git*
-          #   **/.DS_Store
+    # Korak 4: Upload frontend na FTP
+    - name: Upload frontend via FTP
+      uses: SamKirkland/FTP-Deploy-Action@4.3.0
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./frontend/dist/  # Putanja za Vite build direktorij
+        server-dir: /  # FTP destinacija
 
-      # 5) BACKEND: build + priprema deploy foldera
-      - name: Build backend & prepare deploy folder
-        working-directory: ./backend
-        run: |
-          set -e
-          # Čisto instaliranje za build (uklj. dev deps ako koristiš TS/bundler)
-          npm ci
+    # Korak 3: Install i build backend
+    - name: Build backend
+      working-directory: ./backend
+      run: |
+        npm install
+        npm run build
 
-          # Ako imaš TypeScript ili build skriptu, odradi:
-          if npm run | grep -q "build"; then
-            npm run build
-          fi
-
-          # Složi "backend_deploy" sa onim što treba u produkciji
-          cd ..
-          rm -rf backend_deploy
-          mkdir -p backend_deploy
-
-          # 1) Obavezno: package.json i package-lock.json
-          cp backend/package.json backend/package-lock.json backend_deploy/
-
-          # 2) Build output: dist/ ako postoji, u suprotnom kopiraj src/ (za plain JS projekte)
-          if [ -d "backend/dist" ]; then
-            cp -r backend/dist backend_deploy/
-          else
-            cp -r backend/src backend_deploy/
-          fi
-
-          # 3) Ostali potrebni folderi/fajlovi (po potrebi prilagodi):
-          [ -d "backend/public" ] && cp -r backend/public backend_deploy/ || true
-          [ -d "backend/prisma" ] && cp -r backend/prisma backend_deploy/ || true
-          [ -d "backend/migrations" ] && cp -r backend/migrations backend_deploy/ || true
-          [ -f "backend/ecosystem.config.js" ] && cp backend/ecosystem.config.js backend_deploy/ || true
-
-          # 4) Instaliraj PROD zavisnosti u backend_deploy (bez dev deps)
-          cd backend_deploy
-          npm ci --omit=dev
-
-      # 6) BACKEND: upload backend_deploy/ (uključujući node_modules)
-      - name: Upload backend via FTP
-        uses: SamKirkland/FTP-Deploy-Action@4.3.0
-        with:
-          server: ${{ secrets.FTP_BACKEND_SERVER }}
-          username: ${{ secrets.FTP_BACKEND_USERNAME }}
-          password: ${{ secrets.FTP_BACKEND_PASSWORD }}
-          local-dir: ./backend_deploy/
-          server-dir: /
-          # Ako želiš čist deploy svaki put (OPREZ: briše sve na odredištu):
-          # dangerous-clean-slate: true
-          exclude: |
-            **/.git*
-            **/.DS_Store
+    # Korak 5: Upload backend na FTP
+    - name: Upload backend via FTP
+      uses: SamKirkland/FTP-Deploy-Action@4.3.0
+      with:
+        server: ${{ secrets.FTP_BACKEND_SERVER }}
+        username: ${{ secrets.FTP_BACKEND_USERNAME }}
+        password: ${{ secrets.FTP_BACKEND_PASSWORD }}
+        local-dir: ./backend/  # Pobrinite se da lokalni direktorij zaista postoji i završava sa /
+        server-dir: /  # FTP destinacija za backend
