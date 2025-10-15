@@ -10,7 +10,7 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = ["http://localhost:5173", 'https://bingopostapi.edinmesan.ba'];
+const allowedOrigins = ["http://localhost:5173", 'https://bingopostapi.edinmesan.ba', 'https://bingoposta.edinmesan.ba'];
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
