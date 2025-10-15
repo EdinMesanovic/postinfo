@@ -2,106 +2,48 @@ name: Deploy to cPanel via FTP
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout
-      - name: Checkout code
-        uses: actions/checkout@v4
+    # Korak 1: Checkout koda iz GitHub repozitorija
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      # 2) Node 20 (Vite zahtijeva 20.19+ ili 22.12+)
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.19.0'
-          check-latest: true
+    # Korak 2: Setup Node.js
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20.19.0'   # ili '22.12.0'
+        check-latest: true
 
-      #######################
-      # FRONTEND (Vite/React)
-      #######################
+    # Korak 3: Install i build frontend
+    - name: Install and build frontend
+      working-directory: ./frontend
+      run: |
+        npm install
+        npm run build
 
-      - name: Install and build frontend
-        working-directory: ./frontend
-        env:
-          # 👇 stavi API URL kao secret u repo: FRONTEND_API_URL = https://bingopostaapi.edinmesan.ba
-          VITE_API_URL: ${{ secrets.FRONTEND_API_URL }}
-        run: |
-          npm ci
-          npm run build
-          # SPA fallback za cPanel (React Router)
-          cat > dist/.htaccess << 'EOF'
-          RewriteEngine On
-          RewriteBase /
-          RewriteRule ^index\.html$ - [L]
-          RewriteCond %{REQUEST_FILENAME} !-f
-          RewriteCond %{REQUEST_FILENAME} !-d
-          RewriteRule . /index.html [L]
-          EOF
+    # Korak 4: Upload frontend na FTP
+    - name: Upload frontend via FTP
+      uses: SamKirkland/FTP-Deploy-Action@4.3.0
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./frontend/dist/  # Putanja za Vite build direktorij
+        server-dir: /  # FTP destinacija
 
-      - name: Upload frontend via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./frontend/dist/
-          # ⛳️ promijeni na tvoj docroot (npr. /public_html/app/). Ako ti već radi sa '/', ostavi '/'
-          server-dir: /
-          dangerous-clean-slate: true
-
-      ######################
-      # BACKEND (Node/TS → JS)
-      ######################
-
-      - name: Install and build backend
-        working-directory: ./backend
-        run: |
-          npm ci
-          npm run build
-          ls -la dist
-
-      # 1) Uploadamo build-ani JS (dist/) u app root na serveru
-      - name: Upload backend dist via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_BACKEND_SERVER }}
-          username: ${{ secrets.FTP_BACKEND_USERNAME }}
-          password: ${{ secrets.FTP_BACKEND_PASSWORD }}
-          local-dir: ./backend/dist/
-          # ⛳️ promijeni na stvarni app root na serveru; iz tvog SS izgleda da je to /bingopostaapi.edinmesan.ba/dist/
-          server-dir: /bingopostaapi.edinmesan.ba/dist/
-          dangerous-clean-slate: true
-
-      # 2) Uploadamo package.json (+ lock) u app root da cPanel zna koje deps da instalira
-      - name: Upload backend package files
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_BACKEND_SERVER }}
-          username: ${{ secrets.FTP_BACKEND_USERNAME }}
-          password: ${{ secrets.FTP_BACKEND_PASSWORD }}
-          local-dir: ./backend/
-          server-dir: /bingopostaapi.edinmesan.ba/
-          exclude: |
-            *
-            !package.json
-            !package-lock.json
-
-      # 3) Trigger Passenger restart (kreiramo/touchamo tmp/restart.txt)
-      - name: Create restart marker locally
-        run: |
-          mkdir -p restart-marker
-          date > restart-marker/restart.txt
-
-      - name: Upload Passenger restart marker
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_BACKEND_SERVER }}
-          username: ${{ secrets.FTP_BACKEND_USERNAME }}
-          password: ${{ secrets.FTP_BACKEND_PASSWORD }}
-          local-dir: ./restart-marker/
-          server-dir: /bingopostaapi.edinmesan.ba/tmp/
-          dangerous-clean-slate: false
+    # Korak 5: Upload backend na FTP
+    - name: Upload backend via FTP
+      uses: SamKirkland/FTP-Deploy-Action@4.3.0
+      with:
+        server: ${{ secrets.FTP_BACKEND_SERVER }}
+        username: ${{ secrets.FTP_BACKEND_USERNAME }}
+        password: ${{ secrets.FTP_BACKEND_PASSWORD }}
+        local-dir: ./backend/  # Pobrinite se da lokalni direktorij zaista postoji i završava sa /
+        server-dir: /  # FTP destinacija za backend
