@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import type { Shipment } from '../../lib/types';
@@ -14,6 +14,13 @@ export default function PrintLabel() {
     api.get<Shipment>(`/shipments/${id}`).then(r => setS(r.data));
   }, [id]);
 
+  // Puni URL koji će iOS/Android kamera otvoriti direktno u browseru
+  const qrUrl = useMemo(() => {
+    if (!s) return '';
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}/scan/${s.qrSlug}`;
+  }, [s]);
+
   if (!s) return <div>Učitavam…</div>;
 
   return (
@@ -22,8 +29,13 @@ export default function PrintLabel() {
 
       <div className="label">
         <div className="left">
-          <QRCodeCanvas value={s.qrSlug} size={300} includeMargin />
+          <QRCodeCanvas value={qrUrl} size={300} includeMargin />
+          <div className="qr-caption">
+            <div><b>QR:</b> {s.qrSlug}</div>
+            <div style={{fontSize:12, color:'#555', wordBreak:'break-all'}}>{qrUrl}</div>
+          </div>
         </div>
+
         <div className="right">
           <div><b>PJ:</b> {s.pjCode} — {s.pjName}</div>
           <div><b>Status:</b> {s.status}</div>
@@ -35,7 +47,7 @@ export default function PrintLabel() {
       <div className="block">
         <div className="block-title">Dokumenti u pošiljci</div>
         <div className="lines">
-          {Array.from({length: 12}).map((_,i) => <div key={i} className="line"/>)}
+          {Array.from({ length: 12 }).map((_, i) => <div key={i} className="line" />)}
         </div>
       </div>
     </div>

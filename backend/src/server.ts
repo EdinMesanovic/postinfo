@@ -6,6 +6,9 @@ import dotenv from "dotenv";
 import morgan from "morgan";
 import shipmentsRouter from "./routes/shipments";
 
+import authRoutes from "./routes/auth";
+import cookieParser from "cookie-parser";
+
 dotenv.config();
 
 const app = express();
@@ -36,10 +39,13 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(morgan("dev")); // ako želiš logove
 
 app.get("/health", (_req, res) => res.json({ ok: true, message: "Server radi ✅" }));
 app.use("/shipments", shipmentsRouter);
+
+app.use("/auth", authRoutes);
 
 // centralizovan handler za greške (Zod i ostalo)
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -15,6 +15,7 @@ const ShipmentSchema = new Schema(
     notes:    { type: String },
     qrSlug:   { type: String, required: true, unique: true, index: true }, // payload za QR
     status:   { type: String, enum: Object.values(ShipmentStatus), default: ShipmentStatus.CREATED_IN_POST, index: true },
+    pickedBy: { type: Schema.Types.ObjectId, ref: "User" },
     pickedAt: { type: Date },
   },
   { timestamps: true }
