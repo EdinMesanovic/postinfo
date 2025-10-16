@@ -18,12 +18,13 @@ router.post("/", async (req, res, next) => {
       pjName: z.string().min(1),
       pieces: z.number().int().positive().optional(),
       notes: z.string().optional(),
+      documents: z.string().optional(),
     });
 
-    const { pjCode, pjName, pieces, notes } = schema.parse(req.body);
+    const { pjCode, pjName, pieces, notes, documents } = schema.parse(req.body);
     const qrSlug = nanoid();
 
-    const created = await Shipment.create({ pjCode, pjName, pieces, notes, qrSlug });
+    const created = await Shipment.create({ pjCode, pjName, pieces, notes, qrSlug, documents });
     res.json(created);
   } catch (err) {
     next(err);

@@ -10,4 +10,5 @@ export interface Shipment {
   status: ShipmentStatus;
   createdAt: string;
   updatedAt: string;
+  documents?: string; // ⬅️ samo tekst
 }

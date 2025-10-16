@@ -5,7 +5,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { Link } from 'react-router-dom';
 
 export default function NewShipment() {
-  const [form, setForm] = useState({ pjCode:'', pjName:'', pieces:'', notes:'' });
+  const [form, setForm] = useState({ pjCode:'', pjName:'', pieces:'', notes:'' , documents:'' });
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -17,7 +17,8 @@ export default function NewShipment() {
         pjCode: form.pjCode.trim(),
         pjName: form.pjName.trim(),
         pieces: form.pieces ? Number(form.pieces) : undefined,
-        notes: form.notes || undefined
+        notes: form.notes || undefined,
+        documents: form.documents || undefined,
       });
       setShipment(r.data);
     } finally {
@@ -43,6 +44,15 @@ export default function NewShipment() {
           <label><span>Napomena (opcionalno)</span>
             <textarea rows={3} value={form.notes} onChange={e=>setForm(f=>({...f, notes:e.target.value}))} />
           </label>
+          <label><span>Dokumenti u pošiljci</span>
+            <textarea
+              rows={6}
+              placeholder={`Doznake za bolovanje - Niko Nekić\nDokumenti za odjavu radnika - Nikola Novi\n...`}
+              value={form.documents}
+              onChange={e=>setForm(f=>({...f, documents:e.target.value}))}
+              style={{resize:'vertical'}}
+            />
+          </label>
           <button className="btn primary" disabled={!form.pjCode || !form.pjName || saving}>
             {saving ? 'Spremam…' : 'Generiši pošiljku + QR'}
           </button>
@@ -54,6 +64,17 @@ export default function NewShipment() {
           <div className="card">
             <div className="muted">PJ</div>
             <div className="title">{shipment.pjCode} — {shipment.pjName}</div>
+
+            {/* Preview unesenih dokumenata (kao tekst) */}
+            {shipment.documents && (
+              <>
+                <div className="muted" style={{marginTop:10}}>Dokumenti u pošiljci</div>
+                <pre style={{whiteSpace:'pre-wrap', margin:0}}>
+                {shipment.documents}
+                </pre>
+              </>
+            )}
+
             <div className="muted" style={{marginTop:10}}>QR payload</div>
             <code className="code">{shipment.qrSlug}</code>
             <div className="row" style={{marginTop:10}}>

@@ -14,3 +14,37 @@ input, select, textarea { border:1px solid #e5e7eb; border-radius:8px; padding:8
 .thead, .tr { display:grid; grid-template-columns: 2fr 1fr 1.2fr 1fr; gap:12px; padding:8px 0; }
 .thead { border-bottom:1px solid #e5e7eb; font-weight:600; color:#333; }
 .tr { border-bottom:1px dashed #eee; }
+
+/* Globalno pravilo: sve s .no-print sakrij pri štampi */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  /* (Opciono) full-bleed sadržaj za print */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Ako želiš da glavni sadržaj ide od ruba do ruba na printu */
+  .container {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+
+.doc-lines { display: grid; gap: 6px; }
+.doc-line {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: end;
+  padding: 6px 0;
+  border-bottom: 1px dashed #bbb;
+  min-height: 22px;
+}
+.doc-line .idx { color: #666; }
+.doc-line.empty { color: transparent; }

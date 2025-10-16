@@ -13,6 +13,7 @@ const ShipmentSchema = new Schema(
     pjName:   { type: String, required: true, trim: true }, // npr. "PJ Gradačac"
     pieces:   { type: Number },
     notes:    { type: String },
+    documents:{ type: String }, // imena fajlova u /uploads
     qrSlug:   { type: String, required: true, unique: true, index: true }, // payload za QR
     status:   { type: String, enum: Object.values(ShipmentStatus), default: ShipmentStatus.CREATED_IN_POST, index: true },
     pickedBy: { type: Schema.Types.ObjectId, ref: "User" },
