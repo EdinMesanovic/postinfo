@@ -1,21 +1,52 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import config from "../config";           // ✅ koristi centralnu konfiguraciju
 import { User } from "../models/User";
-import "dotenv/config";
 
-const MONGODB_URL = process.env.MONGODB_URL!;
+const SALT_ROUNDS = 10;
 
-(async () => {
-  await mongoose.connect(MONGODB_URL);
+/** Utility funkcija za kreiranje ili ažuriranje korisnika */
+async function mk(
+  username: string,
+  role: "ADMIN" | "DRIVER",
+  password: string
+) {
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const mk = async (name: string, email: string, role: "ADMIN"|"DRIVER", pin: string) => {
-    const pinHash = await bcrypt.hash(pin, 10);
-    const u = await User.findOneAndUpdate({ email }, { name, email, role, pinHash, status:"ACTIVE" }, { upsert: true, new: true });
-    console.log(`✓ ${role} user: ${u.email} (pin: ${pin})`);
-  };
+  const cleanUsername = username.toLowerCase().trim();
 
-  await mk("Admin", "admin@postinfo.ba", "ADMIN", "1234");
-  await mk("Vozač Pero", "driver1@postinfo.ba", "DRIVER", "1111");
+  const u = await User.findOneAndUpdate(
+    { username: cleanUsername },
+    {
+      username: cleanUsername,
+      role,
+      passwordHash,
+      status: "ACTIVE",
+    },
+    { upsert: true, new: true }
+  );
+
+  console.log(`✓ ${role} user: ${u.username} (password: ${password})`);
+}
+
+/** Glavna funkcija */
+async function main() {
+  console.log("🔌 Connecting to MongoDB...");
+  await mongoose.connect(config.mongoUrl);
+  console.log("✅ MongoDB connected");
+
+  // --- Dodaj/azuriraj korisnike ovdje ---
+  await mk("edin.mesanovic", "ADMIN", "adminposta");
+  await mk("admir.huremovic", "DRIVER", "vozacposta");
+
+  // --------------------------------------
 
   await mongoose.disconnect();
-})();
+  console.log("✅ Users created/updated. Done.");
+}
+
+/** Pokreni skriptu */
+main().catch((err) => {
+  console.error("❌ Seed error:", err);
+  mongoose.disconnect().finally(() => process.exit(1));
+});

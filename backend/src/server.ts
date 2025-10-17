@@ -1,71 +1,183 @@
+// src/server.ts
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
-import dotenv from "dotenv";
-// opcionalno:
 import morgan from "morgan";
-import shipmentsRouter from "./routes/shipments";
-
-import authRoutes from "./routes/auth";
 import cookieParser from "cookie-parser";
+import compression from "compression";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet"; // ✅ [NOVO] sigurnosni HTTP headeri
 
-dotenv.config();
+import config from "./config";
+import shipmentsRouter from "./routes/shipments";
+import authRoutes from "./routes/auth";
+import { authRequired } from "./middlewares/auth";
 
 const app = express();
 
-const allowedOrigins = ["http://localhost:5173", 'https://bingoposta.edinmesan.ba'];
+/** ✅ [NOVO] sigurnosno: sakrij Express potpis */
+app.disable("x-powered-by");
 
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (typeof origin === "string" && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  }
-  
-  // Ako je OPTIONS request (preflight request), odmah vraćamo status 200
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  
-  next();
-});
+/** Proxy-aware (ako si iza Nginx/Cloudflare) */
+app.set("trust proxy", 1);
 
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
+/** ✅ [NOVO] Helmet (sigurnosni headeri: X-Frame-Options, X-Content-Type-Options, itd.) */
+app.use(helmet());
 
-app.use(express.json());
-app.use(cookieParser());
-app.use(morgan("dev")); // ako želiš logove
-
-app.get("/health", (_req, res) => res.json({ ok: true, message: "Server radi ✅" }));
-app.use("/shipments", shipmentsRouter);
-
-app.use("/auth", authRoutes);
-
-// centralizovan handler za greške (Zod i ostalo)
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err?.name === "ZodError") {
-    return res.status(400).json({ error: "validation_error", details: err.errors });
-  }
-  console.error(err);
-  res.status(500).json({ error: "server_error" });
-});
-
-const PORT = Number(process.env.PORT || 4000);
-const MONGODB_URL = process.env.MONGODB_URL || "";
-
-mongoose
-  .connect(MONGODB_URL)
-  .then(() => {
-    console.log("✅ MongoDB connected");
-    app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+/** CORS (iz configa) */
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true); // Dozvoli Postman/curl bez Origin headera
+      if (config.cors.origins.includes(origin)) return cb(null, true);
+      return cb(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Origin",
+      "X-Requested-With",
+      "Content-Type",
+      "Accept",
+      "Authorization",
+      "X-CSRF-Token",
+    ],
   })
-  .catch((err) => {
-    console.error("❌ MongoDB connection error:", err);
-    process.exit(1);
+);
+
+/** Parsers & middleware */
+app.use(express.json({ limit: "1mb" }));
+app.use(cookieParser());
+if (!config.isProd) app.use(morgan("dev"));
+if (config.isProd) app.use(compression()); // ✅ [NOVO] kompresuj odgovore u produkciji
+
+/** Root ping */
+app.get("/", (_req, res) => res.status(200).send("Bingo Posta API"));
+
+/** ✅ [NOVO] Health (liveness): proces živi */
+app.get("/api/v1/health", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.status(200).json({
+    status: "ok",
+    version: "v1",
+    env: config.env,
+    time: new Date().toISOString(),
   });
+});
+
+/** ✅ [NOVO] helper: aktivno pingaj Mongo (uhvati “polu-mrtve” konekcije) */
+async function mongoReady(timeoutMs = 800): Promise<boolean> {
+  // 1 = connected, 2 = connecting, 0/3 = disconnected/disconnecting
+  if (mongoose.connection.readyState !== 1) return false;
+  try {
+    // @ts-ignore - admin().ping nije tipizovan u mongoose types
+    const res = await (mongoose.connection.db as any).admin().ping();
+    return !!res;
+  } catch {
+    return false;
+  }
+}
+
+/** ✅ [NOVO] Readiness: servis stvarno spreman (DB ok?). Kad padne DB -> 503 */
+app.get("/api/v1/ready", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+
+  const mongoOk = await mongoReady();
+  const ok = mongoOk;
+
+  res.status(ok ? 200 : 503).json({
+    ok,
+    mongo: mongoOk ? "connected" : "down",
+    time: new Date().toISOString(),
+  });
+});
+
+/** ✅ Rate limiter samo za /auth (štiti login/refresh od brute-force napada) */
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min prozor
+  max: 100,                 // 100 req/IP u prozoru
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limited" },
+});
+
+/** API v1 namespace */
+const v1 = express.Router();
+
+// javne rute
+v1.use("/auth", authLimiter, authRoutes);
+
+// zaštićene rute
+v1.use("/shipments", authRequired, shipmentsRouter);
+
+// mount
+app.use("/api/v1", v1);
+
+/**
+ * (Opcionalno) /api kao deprecated “alias” za /api/v1
+ * Klijentima daje do znanja da će stari path biti ugašen (via headeri),
+ * ali i dalje radi jer montiramo isti router.
+ */
+app.use(
+  "/api",
+  (req, res, next) => {
+    res.set("Deprecation", "true");
+    res.set("Sunset", "2026-01-31");
+    next();
+  },
+  v1
+);
+
+/** 404 handler */
+app.use((req, res) =>
+  res.status(404).json({ error: "not_found", path: req.originalUrl })
+);
+
+/** Centralni error handler (Zod i ostalo) */
+app.use(
+  (
+    err: any,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction
+  ) => {
+    if (err?.name === "ZodError") {
+      return res
+        .status(400)
+        .json({ error: "validation_error", details: err.errors });
+    }
+    if (!config.isProd) console.error(err);
+    res.status(err.status || 500).json({
+      error: err.code || "server_error",
+      message: err.message || "Internal Server Error",
+    });
+  }
+);
+
+/** Start + Mongo + graceful shutdown */
+async function start() {
+  await mongoose.connect(config.mongoUrl);
+  console.log("✅ MongoDB connected");
+
+  const server = app.listen(config.port, () =>
+    console.log(`🚀 API running on http://localhost:${config.port} (${config.env})`)
+  );
+
+  /** ✅ Graceful shutdown: zatvori HTTP i DB konekciju kada stigne signal */
+  const shutdown = async (sig: string) => {
+    console.log(`↩️  ${sig} received. Shutting down...`);
+    server.close(async () => {
+      await mongoose.disconnect();
+      process.exit(0);
+    });
+  };
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+}
+
+start().catch((err) => {
+  console.error("❌ Startup error:", err);
+  process.exit(1);
+});
+
+export default app;

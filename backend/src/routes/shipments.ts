@@ -8,6 +8,7 @@ import { authRequired, roleRequired, AuthReq } from "../middlewares/auth";
 //radi
 const nanoid = customAlphabet("0123456789abcdef", 12);
 
+
 const router = Router();
 
 // POST /shipments -> kreiraj pošiljku

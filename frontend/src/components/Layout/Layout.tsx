@@ -22,7 +22,7 @@ export default function Layout() {
           <NavLink to="/scan">Scan</NavLink>
         </nav>
         <div style={{marginLeft:"auto", display:"flex", gap:12, alignItems:"center"}}>
-          <span>{user?.name} · {user?.role}</span>
+          <span>{user?.username} · {user?.role}</span>
           <button className="btn" onClick={logout}>Odjava</button>
         </div>
       </header>
