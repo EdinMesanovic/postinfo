@@ -11,6 +11,7 @@ package-lock.json
 
 # Ignoriraj .env fajlove specifično u frontend direktoriju
 /frontend/.env
+/frontend/.env.production
 
 /backend/createUser.js
 
