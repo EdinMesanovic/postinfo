@@ -1,6 +1,5 @@
 # Ignorisi node_modules direktorij
 node_modules/
-package-lock.json
 
 # Ignoriraj .env fajlove samo u root direktoriju
 /.env
@@ -12,8 +11,6 @@ package-lock.json
 # Ignoriraj .env fajlove specifično u frontend direktoriju
 /frontend/.env
 /frontend/.env.production
-
-/backend/createUser.js
 
 # Ignorisi privremene fajlove
 *.log
