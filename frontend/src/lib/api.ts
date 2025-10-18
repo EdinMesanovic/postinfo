@@ -1,8 +1,7 @@
-// src/lib/api.ts
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  withCredentials: true,
-  headers: { "Content-Type": "application/json" }
+  baseURL: "https://bingopostaapi.edinmesan.ba/api/v1",
+  withCredentials: true,               // ako koristiš cookie refresh
+  headers: { "Content-Type": "application/json" },
 });
