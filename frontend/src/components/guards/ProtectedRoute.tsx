@@ -6,12 +6,12 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
   const { user, loading } = useAuth();
   const loc = useLocation();
 
-  console.log("[ProtectedRoute]", {
-    pathname: loc.pathname,
-    search: loc.search,
-    user: !!user,
-    loading,
-  });
+  // console.log("[ProtectedRoute]", {
+  //   pathname: loc.pathname,
+  //   search: loc.search,
+  //   user: !!user,
+  //   loading,
+  // });
 
   // Nikad ne redirectaj sa /login
   if (loc.pathname.startsWith("/login")) return children;

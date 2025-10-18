@@ -1,4 +1,8 @@
-export type ShipmentStatus = 'CREATED_IN_POST' | 'AT_LDC' | 'PICKED_BY_DRIVER' | 'DELIVERED';
+export type ShipmentStatus =
+  | 'CREATED_IN_POST'
+  | 'AT_LDC'
+  | 'PICKED_BY_DRIVER'
+  | 'DELIVERED';
 
 export interface Shipment {
   _id: string;
@@ -6,9 +10,15 @@ export interface Shipment {
   pjName: string;
   pieces?: number;
   notes?: string;
+  documents?: string; // plain text
   qrSlug: string;
   status: ShipmentStatus;
   createdAt: string;
   updatedAt: string;
-  documents?: string; // ⬅️ samo tekst
+
+  // NOVO: info o preuzimanju
+  pickedAt?: string;
+  pickedBy?: string;           // ObjectId kao string
+  pickedByName?: string;       // snapshot imena/username-a
+  pickedByUsername?: string;   // snapshot username (ako želiš)
 }

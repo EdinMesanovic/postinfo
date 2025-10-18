@@ -3,8 +3,6 @@ import { api } from "../lib/api";
 
 export type Role = "ADMIN" | "DRIVER";
 export type Me = { _id: string; username: string; role: Role };
-
-// ✅ login sada očekuje username/password
 type LoginCreds = { username: string; password: string };
 
 type AuthCtx = {
@@ -25,11 +23,6 @@ const Ctx = createContext<AuthCtx>({
   login: async () => false,
 });
 
-// Držimo tokene u memoriji procesa (ne u storageu)
-let accessTokenMem: string | null = null;
-let refreshTokenMem: string | null = null;
-
-// Helper da postavimo/počistimo Authorization header na axios instanci
 function setAuthHeader(token: string | null) {
   if (token) {
     api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -42,12 +35,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // 🔹 Funkcija za provjeru i postavljanje usera
   const refresh = async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      // nema tokena -> nema poziva /auth/me
+      setAuthHeader(null);
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      setLoading(true);
+      setAuthHeader(token);
       const r = await api.get<{ ok: true; user: Me }>("/auth/me");
       setUser(r.data.user);
     } catch {
+      localStorage.removeItem("accessToken");
+      setAuthHeader(null);
       setUser(null);
     } finally {
       setLoading(false);
@@ -55,33 +60,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Napomena: pošto ne perzistiramo tokene, poslije reload-a nemamo Authorization header,
-    // pa će /auth/me vratiti 401 i user ostaje null — što je OK (ponovna prijava).
+    // 🔹 Kad se app pokrene, pokušaj učitati usera ako postoji token
     void refresh();
+
+    // 🔹 Sinhronizacija login/logout-a između tabova
+    const handler = (e: StorageEvent) => {
+      if (e.key === "accessToken") {
+        void refresh();
+      }
+    };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
   }, []);
 
   const login = async ({ username, password }: LoginCreds): Promise<boolean> => {
     try {
       const r = await api.post("/auth/login", { username, password });
-      // Backend vraća: { ok, accessToken, refreshToken, user }
-      const { accessToken, refreshToken, user } = r.data as {
+      const { accessToken, user } = r.data as {
         accessToken: string;
-        refreshToken: string;
+        refreshToken?: string;
         user: { id: string; username: string; role: Role };
       };
 
-      // Zapamti tokene u memoriji i postavi Authorization header
-      accessTokenMem = accessToken;
-      refreshTokenMem = refreshToken;
-      setAuthHeader(accessTokenMem);
-
-      // Postavi user odmah (brži UX); alternativno: await refresh()
+      localStorage.setItem("accessToken", accessToken);
+      setAuthHeader(accessToken);
       setUser({ _id: user.id, username: user.username, role: user.role });
       return true;
     } catch {
-      // neuspješan login — očisti sve za svaki slučaj
-      accessTokenMem = null;
-      refreshTokenMem = null;
+      localStorage.removeItem("accessToken");
       setAuthHeader(null);
       setUser(null);
       return false;
@@ -92,8 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await api.post("/auth/logout");
     } finally {
-      accessTokenMem = null;
-      refreshTokenMem = null;
+      localStorage.removeItem("accessToken");
       setAuthHeader(null);
       setUser(null);
     }

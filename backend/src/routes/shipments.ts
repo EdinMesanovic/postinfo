@@ -86,6 +86,24 @@ router.post(
       const schema = z.object({ qrSlug: z.string().min(8) });
       const { qrSlug } = schema.parse(req.body);
 
+      // izvuci što imamo o vozaču iz auth middleware-a
+      const me = req.user! as unknown as {
+        _id: string;
+        fullName?: string;
+        name?: string;
+        username?: string;
+        email?: string;
+      };
+
+      const displayName =
+        (me.fullName && me.fullName.trim()) ||
+        (me.name && me.name.trim()) ||
+        (me.username && me.username.trim()) ||
+        (me.email && me.email.trim()) ||
+        "Nepoznat vozač";
+
+      const username = me.username || undefined;
+
       // 1) Pokušaj atomskog update-a SAMO ako još nije preuzeto
       const now = new Date();
       const updated = await Shipment.findOneAndUpdate(
@@ -94,7 +112,9 @@ router.post(
           $set: {
             status: ShipmentStatus.PICKED_BY_DRIVER,
             pickedAt: now,
-            pickedBy: req.user!._id, // iz auth middleware-a
+            pickedBy: me._id,              // ObjectId
+            pickedByName: displayName,     // snapshot
+            pickedByUsername: username,    // snapshot (opc.)
             updatedAt: now,
           },
         },
@@ -108,7 +128,9 @@ router.post(
           shipmentId: updated._id,
           status: updated.status,
           pickedAt: updated.pickedAt,
-          pickedBy: req.user, // minimal info o vozaču koji je skenirao
+          pickedById: updated.pickedBy ?? null,
+          pickedByName: updated.pickedByName ?? displayName,
+          pickedByUsername: updated.pickedByUsername ?? username ?? null,
         });
       }
 
@@ -127,11 +149,12 @@ router.post(
           shipmentId: existing._id,
           status: existing.status,
           pickedAt: existing.pickedAt ?? null,
-          pickedBy: existing.pickedBy ?? null,
+          pickedById: existing.pickedBy ?? null,
+          pickedByName: existing.pickedByName ?? null,
+          pickedByUsername: existing.pickedByUsername ?? null,
         });
       }
 
-      // Ne bi trebalo doći ovdje, ali fallback:
       return res.status(409).json({ ok: false, error: "pickup_conflict" });
     } catch (err) {
       next(err);

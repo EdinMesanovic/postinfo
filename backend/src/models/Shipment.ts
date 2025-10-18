@@ -16,8 +16,11 @@ const ShipmentSchema = new Schema(
     documents:{ type: String }, // imena fajlova u /uploads
     qrSlug:   { type: String, required: true, unique: true, index: true }, // payload za QR
     status:   { type: String, enum: Object.values(ShipmentStatus), default: ShipmentStatus.CREATED_IN_POST, index: true },
-    pickedBy: { type: Schema.Types.ObjectId, ref: "User" },
-    pickedAt: { type: Date },
+     // Ko je pokupio
+    pickedBy:       { type: Schema.Types.ObjectId, ref: "User" },
+    pickedByName:   { type: String },   // ⬅️ denormalizovano ime (npr. "Nikola Nikić")
+    pickedByUsername:{ type: String },  // ⬅️ opcionalno: "nikola.nikic"
+    pickedAt:       { type: Date },
   },
   { timestamps: true }
 );

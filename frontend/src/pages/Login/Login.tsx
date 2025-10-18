@@ -30,7 +30,7 @@ export default function Login() {
     setSubmitting(true);
 
     try {
-      const ok = await login({ username, password }); // ✅ koristi username + password
+      const ok = await login({ username, password });
       if (ok) {
         sessionStorage.removeItem("nextPath");
         navigate(next, { replace: true, state: null });
@@ -45,73 +45,62 @@ export default function Login() {
   }
 
   return (
-    <div
-      style={{
-        maxWidth: 360,
-        margin: "48px auto",
-        padding: 24,
-        border: "1px solid #eee",
-        borderRadius: 12,
-      }}
-    >
-      <h1 style={{ marginBottom: 16 }}>Prijava</h1>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow">
+        <h1 className="mb-6 text-center text-2xl font-semibold text-slate-800">
+          Prijava
+        </h1>
 
-      {error && (
-        <div
-          style={{
-            background: "#fee",
-            border: "1px solid #f99",
-            padding: 12,
-            borderRadius: 8,
-            marginBottom: 12,
-          }}
-        >
-          {error}
-        </div>
-      )}
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ display: "grid", gap: 12 }}>
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Korisničko ime</span>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="username" className="mb-1 block text-sm font-medium text-slate-700">
+              Korisničko ime
+            </label>
             <input
+              id="username"
               type="text"
               value={username}
               autoComplete="username"
               onChange={(e) => setUsername(e.target.value)}
               required
-              style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand"
             />
-          </label>
+          </div>
 
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Lozinka</span>
+          <div>
+            <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
+              Lozinka
+            </label>
             <input
+              id="password"
               type="password"
               value={password}
               autoComplete="current-password"
               onChange={(e) => setPassword(e.target.value)}
               required
-              style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand"
             />
-          </label>
+          </div>
 
           <button
             type="submit"
             disabled={submitting || loading}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 10,
-              border: "1px solid #222",
-              background: "#111",
-              color: "#fff",
-              cursor: submitting || loading ? "not-allowed" : "pointer",
-            }}
+            className={`w-full rounded-lg px-4 py-2 text-white transition ${
+              submitting || loading
+                ? "cursor-not-allowed bg-slate-400"
+                : "bg-slate-900 hover:bg-slate-800"
+            }`}
           >
             {submitting || loading ? "Prijavljivanje…" : "Prijavi se"}
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
